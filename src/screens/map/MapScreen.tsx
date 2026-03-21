@@ -40,25 +40,42 @@ export function MapScreen() {
 
   const isWebPlatform = Platform.OS === 'web'
 
-  useEffect(() => {
+useEffect(() => {
     ;(async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      if (status !== 'granted') {
-        return
-      }
+      if (isWebPlatform) {
+        // Use browser geolocation API for web
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const userLocation = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              }
+              setLocation(userLocation)
+            },
+            (error) => {
+              console.log('Geolocation error:', error.message)
+            },
+            { enableHighAccuracy: true }
+          )
+        }
+      } else {
+        // Use expo-location for native
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          return
+        }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      })
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        })
 
-      const userLocation = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      }
+        const userLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }
 
-      setLocation(userLocation)
-      
-      if (!isWebPlatform) {
+        setLocation(userLocation)
         setMapRegion({
           ...userLocation,
           latitudeDelta: 0.01,
