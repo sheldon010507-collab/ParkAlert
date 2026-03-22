@@ -34,7 +34,7 @@ interface MaterialDialogProps {
   children?: React.ReactNode
 }
 
-export function MaterialDialog({
+function WebDialog({
   visible,
   onDismiss,
   title,
@@ -46,6 +46,59 @@ export function MaterialDialog({
   dismissible = true,
   children,
 }: MaterialDialogProps) {
+  if (!visible) return null
+
+  return (
+    <View style={styles.overlay}>
+      <View style={styles.container}>
+        {icon && (
+          <View style={[styles.iconContainer, { backgroundColor: `${iconColor}20` }]}>
+            <Ionicons name={icon} size={32} color={iconColor} />
+          </View>
+        )}
+
+        {title && (
+          <Text style={[styles.title, typography.headlineSmall]}>
+            {title}
+          </Text>
+        )}
+
+        {content && (
+          <Text style={[styles.content, typography.bodyMedium]}>
+            {content}
+          </Text>
+        )}
+
+        {children}
+
+        {(primaryAction || secondaryAction) && (
+          <View style={styles.actions}>
+            {secondaryAction && (
+              <MaterialButton
+                title={secondaryAction.label}
+                onPress={secondaryAction.onPress}
+                variant="text"
+                size="medium"
+              />
+            )}
+            {primaryAction && (
+              <MaterialButton
+                title={primaryAction.label}
+                onPress={primaryAction.onPress}
+                variant={primaryAction.variant || 'filled'}
+                size="medium"
+              />
+            )}
+          </View>
+        )}
+      </View>
+    </View>
+  )
+}
+
+function NativeDialog(props: MaterialDialogProps) {
+  const { visible, onDismiss, title, content, icon, iconColor = colors.primary, primaryAction, secondaryAction, dismissible = true, children } = props
+
   return (
     <Modal
       visible={visible}
@@ -113,6 +166,13 @@ export function MaterialDialog({
       </TouchableWithoutFeedback>
     </Modal>
   )
+}
+
+export function MaterialDialog(props: MaterialDialogProps) {
+  if (Platform.OS === 'web') {
+    return <WebDialog {...props} />
+  }
+  return <NativeDialog {...props} />
 }
 
 // Alert Dialog - Simplified version for alerts

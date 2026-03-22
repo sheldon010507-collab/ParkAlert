@@ -52,14 +52,17 @@ export function AlertModal({
   distance,
   onDismiss,
 }: AlertModalProps) {
+  console.log('AlertModal render:', { visible, sightingId: sighting?.id, distance })
+
   React.useEffect(() => {
+    console.log('AlertModal effect:', { visible, hasSighting: !!sighting })
+    
     if (visible && sighting) {
-      console.log('Alert triggered! Playing sound and vibration...')
-      
+      console.log('🚨 Alert triggered! Playing sound and vibration...')
+
       playAlertSound()
       triggerVibration()
-      
-      // Also try to request attention
+
       if (Platform.OS === 'web') {
         try {
           window.focus()
