@@ -33,7 +33,7 @@ export interface ParkedCar {
 }
 
 export const MOVEMENT_EXPIRY_MINUTES: Record<MovementType, number> = {
-  walking: 20,
-  cycling: 15,
-  driving: 10,
+  walking: 5,
+  cycling: 3,
+  driving: 2,
 }
