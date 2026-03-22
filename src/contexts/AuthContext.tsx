@@ -43,7 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined
+    })
     
     if (!error && data.user) {
       // Create profile for new user
