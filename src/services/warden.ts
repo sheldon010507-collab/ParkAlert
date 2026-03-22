@@ -64,7 +64,9 @@ export function subscribeToWardenSightings(
   onInsert: (sighting: WardenSighting) => void,
   onDelete: (id: string) => void
 ) {
-  return supabase
+  console.log('Subscribing to warden_sightings changes...')
+  
+  const channel = supabase
     .channel('warden_sightings_changes')
     .on(
       'postgres_changes',
@@ -74,8 +76,10 @@ export function subscribeToWardenSightings(
         table: 'warden_sightings',
       },
       (payload) => {
+        console.log('Received INSERT event:', payload)
         const sighting = payload.new as WardenSighting
         if (new Date(sighting.expires_at) > new Date()) {
+          console.log('Adding new sighting to list:', sighting.id)
           onInsert(sighting)
         }
       }
@@ -88,10 +92,15 @@ export function subscribeToWardenSightings(
         table: 'warden_sightings',
       },
       (payload) => {
+        console.log('Received DELETE event:', payload)
         onDelete(payload.old.id)
       }
     )
-    .subscribe()
+    .subscribe((status) => {
+      console.log('Subscription status:', status)
+    })
+    
+  return channel
 }
 
 export async function setParkedCar(
