@@ -38,6 +38,16 @@ export function MapScreen() {
   const [mapRegion, setMapRegion] = useState(GLASGOW_CENTER)
   const { activeAlert, dismissAlert } = useAlerts(sightings, { parkedCar })
 
+  // Debug log
+  useEffect(() => {
+    console.log('MapScreen state:', {
+      sightingsCount: sightings.length,
+      hasLocation: !!location,
+      hasParkedCar: !!parkedCar,
+      hasActiveAlert: !!activeAlert,
+    })
+  }, [sightings.length, location, parkedCar, activeAlert])
+
   const isWebPlatform = Platform.OS === 'web'
 
 useEffect(() => {

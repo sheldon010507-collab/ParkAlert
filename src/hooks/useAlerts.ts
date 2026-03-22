@@ -41,6 +41,10 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
   }, [session?.user?.id, options?.parkedCar])
 
   const checkAlerts = useCallback(() => {
+    console.log('=== CHECK ALERTS ===')
+    console.log('parkedCarLocation:', parkedCarLocation)
+    console.log('sightings count:', sightings.length)
+    
     if (!parkedCarLocation) {
       console.log('No parked car location, skipping alert check')
       return
@@ -49,10 +53,10 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
     const now = Date.now()
     const cooldownMs = ALERT_COOLDOWN_MINUTES * 60 * 1000
 
-    console.log('Checking alerts:', { 
-      parkedCarLocation, 
+    console.log('Checking alerts:', {
+      parkedCarLocation,
       sightingsCount: sightings.length,
-      alertRadius: ALERT_RADIUS_METERS 
+      alertRadius: ALERT_RADIUS_METERS
     })
 
     for (const sighting of sightings) {
@@ -69,7 +73,7 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
         const lastAlertTime = lastAlertTimes.current.get(sighting.id) || 0
 
         if (now - lastAlertTime > cooldownMs) {
-          console.log('TRIGGERING ALERT for sighting:', sighting.id, 'distance:', distance)
+          console.log('🚨 TRIGGERING ALERT for sighting:', sighting.id, 'distance:', distance)
           lastAlertTimes.current.set(sighting.id, now)
           setActiveAlert({
             sighting,
@@ -77,6 +81,8 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
             timestamp: now,
           })
           break
+        } else {
+          console.log('Alert cooldown not expired for sighting:', sighting.id)
         }
       }
     }

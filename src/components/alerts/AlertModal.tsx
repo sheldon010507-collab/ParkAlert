@@ -18,12 +18,22 @@ let alertAudio: HTMLAudioElement | null = null
 function playAlertSound() {
   if (Platform.OS === 'web') {
     try {
+      console.log('Attempting to play alert sound...')
+      
       if (!alertAudio) {
         alertAudio = new Audio('/assets/alert-sound.mp3')
         alertAudio.loop = false
+        alertAudio.oncanplaythrough = () => {
+          console.log('Audio loaded and ready')
+        }
+        alertAudio.onerror = (e) => {
+          console.log('Audio load error:', e)
+        }
       }
       alertAudio.currentTime = 0
-      alertAudio.play().catch((e) => console.log('Audio play failed:', e))
+      alertAudio.play()
+        .then(() => console.log('Audio playing successfully'))
+        .catch((e) => console.log('Audio play failed:', e))
     } catch (e) {
       console.log('Audio error:', e)
     }
