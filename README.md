@@ -8,6 +8,7 @@ A mobile app for reporting parking warden sightings and receiving real-time aler
 - **Mark My Car** - Save your parked car location with 100m alert radius
 - **Real-time Alerts** - Get notified when wardens are detected near your car
 - **Cross-platform** - Works on Web and iOS
+- **Settings** - Manage notifications, sound, and vibration preferences
 
 ## Tech Stack
 
@@ -56,17 +57,48 @@ npm run ios
 
 ### Database Setup
 
-Run the SQL migration in Supabase SQL Editor:
+Run the SQL migrations in Supabase SQL Editor:
 ```sql
 -- See supabase/migrations/001_initial_schema.sql
+-- See supabase/migrations/002_fix_profiles.sql
 ```
+
+## Security Configuration
+
+### Google Maps API Key
+
+**IMPORTANT**: Restrict your Google Maps API key to prevent unauthorized use:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to APIs & Services > Credentials
+3. Edit your API key
+4. Under "Application restrictions", select "HTTP referrers"
+5. Add your domains:
+   - `localhost:*` (for development)
+   - `your-domain.com/*` (for production)
+6. Under "API restrictions", select "Maps JavaScript API"
+
+### Supabase Configuration
+
+1. Enable Row Level Security (RLS) on all tables
+2. The migration files include RLS policies
+3. Never expose service_role key in client code
 
 ## Project Structure
 
 ```
 src/
 ├── components/     # Reusable UI components
+│   ├── common/     # Shared components (Button, Dialog, etc.)
+│   ├── alerts/     # Alert-related components
+│   ├── map/        # Map components
+│   └── error/      # Error boundary
 ├── screens/        # App screens
+│   ├── auth/       # Login, Register
+│   ├── map/        # Main map screen
+│   ├── report/     # Report sighting
+│   ├── parked/     # Mark parking
+│   └── settings/   # User settings
 ├── hooks/          # Custom React hooks
 ├── services/       # API services
 ├── contexts/       # React contexts
@@ -74,6 +106,19 @@ src/
 ├── types/          # TypeScript types
 └── constants/      # App constants
 ```
+
+## Features Implemented
+
+- ✅ Authentication (Login/Register/Logout)
+- ✅ Password strength validation
+- ✅ Real-time warden sightings
+- ✅ Mark parked car location
+- ✅ Alert notifications (sound + vibration)
+- ✅ Error boundaries
+- ✅ Loading states
+- ✅ Settings screen
+- ✅ Connection status indicator
+- ✅ Automatic reconnection
 
 ## License
 
