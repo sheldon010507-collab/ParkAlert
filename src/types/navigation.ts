@@ -6,5 +6,4 @@ export type RootStackParamList = {
   Map: undefined
   Report: undefined
   Parked: undefined
-  Settings: undefined
 }

@@ -2,16 +2,11 @@ import React from 'react'
 import { Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../services/supabase'
 
-interface AuthErrorWithMessage {
-  error: AuthError | null
-  profileError?: string | null
-}
-
 interface AuthContextType {
   session: Session | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<AuthErrorWithMessage>
-  signUp: (email: string, password: string) => Promise<AuthErrorWithMessage>
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
 }
 
@@ -33,9 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session)
+      }
+    )
 
     return () => subscription.unsubscribe()
   }, [])
@@ -47,23 +44,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined
-    const { data, error } = await supabase.auth.signUp({
-      email,
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
       password,
-      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined
     })
-
+    
     if (!error && data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        username: email.split('@')[0],
-        reputation: 0,
-      })
+      // Create profile for new user
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          username: email.split('@')[0],
+          reputation: 0,
+        })
+      
       if (profileError) {
-        return { error: null, profileError: 'Account created but profile setup failed. Please contact support.' }
+        console.error('Error creating profile:', profileError)
       }
     }
-
+    
     return { error }
   }
 

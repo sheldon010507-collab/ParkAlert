@@ -7,8 +7,6 @@ import { RegisterScreen } from '../screens/auth/RegisterScreen'
 import { MapScreen } from '../screens/map/MapScreen'
 import { ReportScreen } from '../screens/report/ReportScreen'
 import { ParkedScreen } from '../screens/parked/ParkedScreen'
-import { SettingsScreen } from '../screens/settings/SettingsScreen'
-import { LoadingScreen } from '../components/common/LoadingScreen'
 import { RootStackParamList } from '../types/navigation'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -40,11 +38,6 @@ function MainStack() {
         component={ParkedScreen}
         options={{ title: 'Mark Parking', presentation: 'modal' }}
       />
-      <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: 'Settings' }}
-      />
     </Stack.Navigator>
   )
 }
@@ -53,7 +46,7 @@ export function AppNavigator() {
   const { session, loading } = useAuth()
 
   if (loading) {
-    return <LoadingScreen message="Checking authentication..." />
+    return null
   }
 
   return (

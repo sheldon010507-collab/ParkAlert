@@ -1,19 +1,26 @@
 import React from 'react'
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native'
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../theme/colors'
 import { typography, spacing, radius } from '../../theme/typography'
 
 type ChipVariant = 'filled' | 'outlined'
+type ChipSize = 'small' | 'medium'
 
 interface MaterialChipProps {
   label: string
   selected?: boolean
-  onPress: () => void
+  onPress?: () => void
   variant?: ChipVariant
-  icon?: keyof typeof Ionicons.glyphMap
+  size?: ChipSize
   disabled?: boolean
-  accessibilityLabel?: string
+  icon?: keyof typeof Ionicons.glyphMap
+  avatar?: string
 }
 
 export function MaterialChip({
@@ -21,52 +28,93 @@ export function MaterialChip({
   selected = false,
   onPress,
   variant = 'outlined',
-  icon,
+  size = 'medium',
   disabled = false,
-  accessibilityLabel,
+  icon,
+  avatar,
 }: MaterialChipProps) {
   const getBackgroundColor = () => {
     if (disabled) return colors.surfaceVariant
-    if (selected) return colors.primary
+    if (selected) {
+      return variant === 'filled' ? colors.primaryContainer : colors.primaryContainer
+    }
     return variant === 'filled' ? colors.surfaceVariant : 'transparent'
   }
 
   const getTextColor = () => {
     if (disabled) return colors.onSurfaceVariant
-    if (selected) return colors.onPrimary
+    if (selected) return colors.onPrimaryContainer
     return colors.onSurface
   }
 
-  const getBorderColor = () => {
-    if (disabled) return colors.outlineVariant
-    if (selected) return colors.primary
-    return colors.outline
+  const getBorderStyle = () => {
+    if (variant === 'outlined') {
+      return {
+        borderWidth: 1,
+        borderColor: selected ? colors.primary : colors.outline,
+      }
+    }
+    return {}
+  }
+
+  const getSizeStyles = () => {
+    switch (size) {
+      case 'small':
+        return {
+          paddingVertical: spacing.xs,
+          paddingHorizontal: spacing.sm,
+          minHeight: 28,
+        }
+      default:
+        return {
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.md,
+          minHeight: 36,
+        }
+    }
+  }
+
+  const getTextStyle = () => {
+    return size === 'small' ? typography.labelMedium : typography.labelLarge
   }
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
+      activeOpacity={0.8}
       style={[
         styles.chip,
-        { backgroundColor: getBackgroundColor(), borderColor: getBorderColor() },
-        variant === 'outlined' && styles.outlined,
+        getSizeStyles(),
+        { backgroundColor: getBackgroundColor() },
+        getBorderStyle(),
+        { borderRadius: radius.full },
       ]}
-      accessible={true}
-      accessibilityLabel={accessibilityLabel || label}
-      accessibilityHint={selected ? 'Selected' : 'Not selected'}
-      accessibilityRole="checkbox"
-      accessibilityState={{ selected, disabled }}
     >
-      {icon && (
+      {avatar && (
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{avatar}</Text>
+        </View>
+      )}
+      {icon && !avatar && (
         <Ionicons
           name={icon}
-          size={16}
+          size={size === 'small' ? 14 : 16}
           color={getTextColor()}
           style={styles.icon}
         />
       )}
-      <Text style={[styles.label, { color: getTextColor() }]}>{label}</Text>
+      <Text style={[styles.text, { color: getTextColor() }, getTextStyle()]}>
+        {label}
+      </Text>
+      {selected && (
+        <Ionicons
+          name="checkmark"
+          size={size === 'small' ? 14 : 16}
+          color={getTextColor()}
+          style={styles.checkIcon}
+        />
+      )}
     </TouchableOpacity>
   )
 }
@@ -75,18 +123,70 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
-    minHeight: 32,
+    justifyContent: 'center',
   },
-  outlined: {
-    borderWidth: 1,
+  text: {
+    textAlign: 'center',
   },
   icon: {
     marginRight: spacing.xs,
   },
-  label: {
-    ...typography.labelMedium,
+  checkIcon: {
+    marginLeft: spacing.xs,
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
+  },
+  avatarText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+})
+
+// Chip Group for multiple chips
+interface ChipGroupProps {
+  options: Array<{ value: string; label: string; icon?: keyof typeof Ionicons.glyphMap }>
+  selectedValue: string | null
+  onSelect: (value: string) => void
+  variant?: ChipVariant
+  size?: ChipSize
+}
+
+export function ChipGroup({
+  options,
+  selectedValue,
+  onSelect,
+  variant = 'outlined',
+  size = 'medium',
+}: ChipGroupProps) {
+  return (
+    <View style={groupStyles.container}>
+      {options.map((option) => (
+        <MaterialChip
+          key={option.value}
+          label={option.label}
+          selected={selectedValue === option.value}
+          onPress={() => onSelect(option.value)}
+          variant={variant}
+          size={size}
+          icon={option.icon}
+        />
+      ))}
+    </View>
+  )
+}
+
+const groupStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
 })
