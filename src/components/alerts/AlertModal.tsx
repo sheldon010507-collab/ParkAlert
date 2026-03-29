@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { MaterialDialog } from '../common/MaterialDialog'
 import { WardenSighting } from '../../types/database'
 import { wardenColors, wardenLabels } from '../../theme/colors'
@@ -13,67 +14,44 @@ interface AlertModalProps {
   onDismiss: () => void
 }
 
-let alertAudio: HTMLAudioElement | null = null
-
 function playAlertSound() {
   if (Platform.OS === 'web') {
     try {
-      console.log('Attempting to play alert sound...')
-      
-      // Use a simple beep sound via Web Audio API
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
-      
       oscillator.connect(gainNode)
       gainNode.connect(audioContext.destination)
-      
       oscillator.frequency.value = 800
       oscillator.type = 'sine'
-      
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-      
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.5)
-      
-      console.log('Sound played via Web Audio API')
-    } catch (e) {
-      console.log('Audio error:', e)
-    }
+    } catch (e) {}
   }
 }
 
-function triggerVibration() {
+async function triggerVibration() {
   if (Platform.OS === 'web' && 'vibrate' in navigator) {
     navigator.vibrate([300, 100, 300, 100, 300])
+  } else if (Platform.OS !== 'web') {
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+    } catch (e) {}
   }
 }
 
-export function AlertModal({
-  visible,
-  sighting,
-  distance,
-  onDismiss,
-}: AlertModalProps) {
-  console.log('AlertModal render:', { visible, sightingId: sighting?.id, distance })
-
+export function AlertModal({ visible, sighting, distance, onDismiss }: AlertModalProps) {
   React.useEffect(() => {
-    console.log('AlertModal effect:', { visible, hasSighting: !!sighting })
-    
     if (visible && sighting) {
-      console.log('🚨 Alert triggered! Playing sound and vibration...')
-
       playAlertSound()
       triggerVibration()
-
       if (Platform.OS === 'web') {
-        try {
-          window.focus()
-        } catch (e) {}
+        try { window.focus() } catch (e) {}
       }
     }
-  }, [visible, sighting, distance])
+  }, [visible, sighting])
 
   if (!sighting) return null
 
@@ -81,7 +59,6 @@ export function AlertModal({
     const now = new Date()
     const date = new Date(dateString)
     const diffMins = Math.floor((now.getTime() - date.getTime()) / 60000)
-
     if (diffMins < 1) return 'Just now'
     if (diffMins === 1) return '1 min ago'
     return `${diffMins} mins ago`
@@ -98,52 +75,27 @@ export function AlertModal({
       icon="warning"
       iconColor={wardenColor}
       dismissible={false}
-      primaryAction={{
-        label: 'Dismiss',
-        onPress: onDismiss,
-        variant: 'filled',
-      }}
+      primaryAction={{ label: 'Dismiss', onPress: onDismiss, variant: 'filled' }}
     >
       <View style={styles.content}>
         <View style={styles.sightingInfo}>
           <View style={[styles.typeIndicator, { backgroundColor: wardenColor }]}>
-            <Ionicons
-              name={
-                sighting.warden_type === 'council'
-                  ? 'business'
-                  : sighting.warden_type === 'private'
-                  ? 'car'
-                  : 'shield'
-              }
-              size={24}
-              color="#fff"
-            />
+            <Ionicons name={sighting.warden_type === 'council' ? 'business' : sighting.warden_type === 'private' ? 'car' : 'shield'} size={24} color="#fff" />
           </View>
-          <Text style={[styles.typeText, typography.titleMedium]}>
-            {wardenLabel}
-          </Text>
+          <Text style={[styles.typeText, typography.titleMedium]}>{wardenLabel}</Text>
         </View>
-
         <View style={styles.details}>
           <View style={styles.detailItem}>
             <Ionicons name="location" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              <Text style={styles.distanceHighlight}>{distance}m</Text> away
-            </Text>
+            <Text style={[styles.detailText, typography.bodyLarge]}><Text style={styles.distanceHighlight}>{distance}m</Text> away</Text>
           </View>
-
           <View style={styles.detailItem}>
             <Ionicons name="compass" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              Moving {sighting.direction}
-            </Text>
+            <Text style={[styles.detailText, typography.bodyLarge]}>Moving {sighting.direction}</Text>
           </View>
-
           <View style={styles.detailItem}>
             <Ionicons name="time" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              {getTimeAgo(sighting.created_at)}
-            </Text>
+            <Text style={[styles.detailText, typography.bodyLarge]}>{getTimeAgo(sighting.created_at)}</Text>
           </View>
         </View>
       </View>
@@ -152,40 +104,12 @@ export function AlertModal({
 }
 
 const styles = StyleSheet.create({
-  content: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  sightingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  typeIndicator: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  typeText: {
-    color: wardenColors.council,
-  },
-  details: {
-    width: '100%',
-    gap: spacing.sm,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  detailText: {
-    color: wardenColors.council,
-  },
-  distanceHighlight: {
-    fontWeight: '700',
-    fontSize: 20,
-  },
+  content: { width: '100%', alignItems: 'center' },
+  sightingInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  typeIndicator: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+  typeText: { color: wardenColors.council },
+  details: { width: '100%', gap: spacing.sm },
+  detailItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  detailText: { color: wardenColors.council },
+  distanceHighlight: { fontWeight: '700', fontSize: 20 },
 })
