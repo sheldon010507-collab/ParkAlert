@@ -88,7 +88,7 @@ export function WebInteractiveMap({
 
     const init = () => {
       if (!mapRef.current || !window.L) return
-      
+
       const map = window.L.map(mapRef.current, {
         center: [center.latitude, center.longitude],
         zoom: 15,
@@ -118,6 +118,13 @@ export function WebInteractiveMap({
       }
     }
   }, [])
+
+  // Center map on user location when it changes
+  useEffect(() => {
+    if (mapInstanceRef.current && userLocation) {
+      mapInstanceRef.current.setView([userLocation.latitude, userLocation.longitude], 16)
+    }
+  }, [userLocation])
 
   // Update user location marker
   useEffect(() => {

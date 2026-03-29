@@ -20,20 +20,24 @@ function playAlertSound() {
     try {
       console.log('Attempting to play alert sound...')
       
-      if (!alertAudio) {
-        alertAudio = new Audio('/assets/alert-sound.mp3')
-        alertAudio.loop = false
-        alertAudio.oncanplaythrough = () => {
-          console.log('Audio loaded and ready')
-        }
-        alertAudio.onerror = (e) => {
-          console.log('Audio load error:', e)
-        }
-      }
-      alertAudio.currentTime = 0
-      alertAudio.play()
-        .then(() => console.log('Audio playing successfully'))
-        .catch((e) => console.log('Audio play failed:', e))
+      // Use a simple beep sound via Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.value = 800
+      oscillator.type = 'sine'
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.5)
+      
+      console.log('Sound played via Web Audio API')
     } catch (e) {
       console.log('Audio error:', e)
     }
