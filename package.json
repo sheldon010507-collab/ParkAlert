@@ -9,7 +9,12 @@
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "preset": "jest-expo"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.6",
@@ -35,7 +40,10 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "jest": "^30.3.0",
+    "jest-expo": "^55.0.11",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AuthProvider } from './src/contexts/AuthContext'
 import { AppNavigator } from './src/navigation/AppNavigator'
-import { ErrorBoundary } from './src/components/common/ErrorBoundary'
+import { ErrorBoundary } from './src/components/error/ErrorBoundary'
 
 export default function App() {
   return (

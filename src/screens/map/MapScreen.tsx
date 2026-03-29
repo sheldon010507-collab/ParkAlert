@@ -14,6 +14,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getParkedCar, setParkedCar, removeParkedCar } from '../../services/warden'
 import { colors } from '../../theme/colors'
 import { typography, spacing } from '../../theme/typography'
+import { logger } from '../../utils/logger'
+import type { WardenType, DirectionType, MovementType } from '../../types/database'
 
 const GLASGOW_CENTER = {
   latitude: 55.8609,
@@ -40,7 +42,7 @@ export function MapScreen() {
 
   // Debug log
   useEffect(() => {
-    console.log('MapScreen state:', {
+    logger.debug('MapScreen state:', {
       sightingsCount: sightings.length,
       hasLocation: !!location,
       hasParkedCar: !!parkedCar,
@@ -63,9 +65,9 @@ useEffect(() => {
               }
               setLocation(userLocation)
             },
-            (error) => {
-              console.log('Geolocation error:', error.message)
-            },
+        (error) => {
+          logger.warn('Geolocation Error:', error.message)
+        },
             { enableHighAccuracy: true }
           )
         }
@@ -124,7 +126,7 @@ useEffect(() => {
     setParkedCarState(null)
   }
 
-const handleAddSighting = async (data: {
+  const handleAddSighting = async (data: {
     lat: number
     lng: number
     warden_type: string
@@ -132,7 +134,7 @@ const handleAddSighting = async (data: {
     movement: string
   }) => {
     if (!session?.user?.id) {
-      console.log('No session, cannot create sighting')
+      logger.warn('No session, cannot create sighting')
       return
     }
 
@@ -141,14 +143,14 @@ const handleAddSighting = async (data: {
       {
         lat: data.lat,
         lng: data.lng,
-        warden_type: data.warden_type as any,
-        direction: data.direction as any,
-        movement: data.movement as any,
+        warden_type: data.warden_type as WardenType,
+        direction: data.direction as DirectionType,
+        movement: data.movement as MovementType,
         count: 'one',
       },
       session.user.id
     )
-    console.log('createWardenSighting result:', result)
+    logger.debug('createWardenSighting result:', result)
   }
 
 if (isWebPlatform) {

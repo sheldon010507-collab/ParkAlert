@@ -1,3 +1,3 @@
 export { WebMapPlaceholder } from './WebMapPlaceholder'
 export { WebMap } from './WebMap'
-export { ErrorBoundary } from './ErrorBoundary'
+export { ErrorBoundary } from '../error/ErrorBoundary'

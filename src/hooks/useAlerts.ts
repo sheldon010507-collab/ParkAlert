@@ -4,6 +4,7 @@ import { getParkedCar } from '../services/warden'
 import { calculateDistance } from '../services/location'
 import { useAuth } from '../contexts/AuthContext'
 import { ALERT_RADIUS_METERS, ALERT_COOLDOWN_MINUTES } from '../constants'
+import { logger } from '../utils/logger'
 
 interface AlertState {
   sighting: WardenSighting
@@ -41,19 +42,19 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
   }, [session?.user?.id, options?.parkedCar])
 
   const checkAlerts = useCallback(() => {
-    console.log('=== CHECK ALERTS ===')
-    console.log('parkedCarLocation:', parkedCarLocation)
-    console.log('sightings count:', sightings.length)
-    
+    logger.debug('=== CHECK ALERTS ===')
+    logger.debug('parkedCarLocation:', parkedCarLocation)
+    logger.debug('sightings count:', sightings.length)
+
     if (!parkedCarLocation) {
-      console.log('No parked car location, skipping alert check')
+      logger.debug('No parked car location, skipping alert check')
       return
     }
 
     const now = Date.now()
     const cooldownMs = ALERT_COOLDOWN_MINUTES * 60 * 1000
 
-    console.log('Checking alerts:', {
+    logger.debug('Checking alerts:', {
       parkedCarLocation,
       sightingsCount: sightings.length,
       alertRadius: ALERT_RADIUS_METERS
@@ -67,13 +68,13 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
         sighting.lng
       )
 
-      console.log(`Sighting ${sighting.id}: ${distance}m away`)
+      logger.debug(`Sighting ${sighting.id}: ${distance}m away`)
 
       if (distance <= ALERT_RADIUS_METERS) {
         const lastAlertTime = lastAlertTimes.current.get(sighting.id) || 0
 
         if (now - lastAlertTime > cooldownMs) {
-          console.log('🚨 TRIGGERING ALERT for sighting:', sighting.id, 'distance:', distance)
+          logger.debug('🚨 TRIGGERING ALERT for sighting:', sighting.id, 'distance:', distance)
           lastAlertTimes.current.set(sighting.id, now)
           setActiveAlert({
             sighting,
@@ -82,7 +83,7 @@ export function useAlerts(sightings: WardenSighting[], options?: UseAlertsOption
           })
           break
         } else {
-          console.log('Alert cooldown not expired for sighting:', sighting.id)
+          logger.debug('Alert cooldown not expired for sighting:', sighting.id)
         }
       }
     }

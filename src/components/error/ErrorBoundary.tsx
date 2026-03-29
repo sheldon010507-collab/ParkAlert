@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { MaterialButton } from '../common/MaterialButton'
 import { colors } from '../../theme/colors'
 import { typography, spacing, radius } from '../../theme/typography'
+import { logger } from '../../utils/logger'
 
 interface Props {
   children: ReactNode
@@ -28,10 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo })
-    // Log error to console in development
-    if (__DEV__) {
-      console.error('ErrorBoundary caught:', error, errorInfo)
-    }
+    // Log error using logger utility
+    logger.error('ErrorBoundary caught:', error, errorInfo)
   }
 
   handleReset = () => {

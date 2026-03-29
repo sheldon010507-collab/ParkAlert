@@ -5,6 +5,7 @@ import { MaterialDialog } from '../common/MaterialDialog'
 import { WardenSighting } from '../../types/database'
 import { wardenColors, wardenLabels } from '../../theme/colors'
 import { typography, spacing } from '../../theme/typography'
+import { logger } from '../../utils/logger'
 
 interface AlertModalProps {
   visible: boolean
@@ -18,24 +19,24 @@ let alertAudio: HTMLAudioElement | null = null
 function playAlertSound() {
   if (Platform.OS === 'web') {
     try {
-      console.log('Attempting to play alert sound...')
-      
+      logger.debug('Attempting to play alert sound...')
+
       if (!alertAudio) {
         alertAudio = new Audio('/assets/alert-sound.mp3')
         alertAudio.loop = false
         alertAudio.oncanplaythrough = () => {
-          console.log('Audio loaded and ready')
+          logger.debug('Audio loaded and ready')
         }
         alertAudio.onerror = (e) => {
-          console.log('Audio load error:', e)
+          logger.warn('Audio load error:', e)
         }
       }
       alertAudio.currentTime = 0
       alertAudio.play()
-        .then(() => console.log('Audio playing successfully'))
-        .catch((e) => console.log('Audio play failed:', e))
+        .then(() => logger.debug('Audio playing successfully'))
+        .catch((e) => logger.warn('Audio play failed:', e))
     } catch (e) {
-      console.log('Audio error:', e)
+      logger.warn('Audio error:', e)
     }
   }
 }
@@ -52,13 +53,13 @@ export function AlertModal({
   distance,
   onDismiss,
 }: AlertModalProps) {
-  console.log('AlertModal render:', { visible, sightingId: sighting?.id, distance })
+  logger.debug('AlertModal render:', { visible, sightingId: sighting?.id, distance })
 
   React.useEffect(() => {
-    console.log('AlertModal effect:', { visible, hasSighting: !!sighting })
-    
+    logger.debug('AlertModal effect:', { visible, hasSighting: !!sighting })
+
     if (visible && sighting) {
-      console.log('🚨 Alert triggered! Playing sound and vibration...')
+      logger.debug('🚨 Alert triggered! Playing sound and vibration...')
 
       playAlertSound()
       triggerVibration()
@@ -66,7 +67,9 @@ export function AlertModal({
       if (Platform.OS === 'web') {
         try {
           window.focus()
-        } catch (e) {}
+        } catch (e) {
+          // Ignore focus errors
+        }
       }
     }
   }, [visible, sighting, distance])

@@ -8,6 +8,7 @@ import {
   MovementType,
   MOVEMENT_EXPIRY_MINUTES,
 } from '../types/database'
+import { logger } from '../utils/logger'
 
 export async function createWardenSighting(
   data: {
@@ -36,7 +37,7 @@ export async function createWardenSighting(
     .single()
 
   if (error) {
-    console.error('Error creating warden sighting:', error)
+    logger.error('Error creating warden sighting:', error)
     return null
   }
 
@@ -53,7 +54,7 @@ export async function getActiveWardenSightings(): Promise<WardenSighting[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching warden sightings:', error)
+    logger.error('Error fetching warden sightings:', error)
     return []
   }
 
@@ -64,8 +65,8 @@ export function subscribeToWardenSightings(
   onInsert: (sighting: WardenSighting) => void,
   onDelete: (id: string) => void
 ) {
-  console.log('Subscribing to warden_sightings changes...')
-  
+  logger.debug('Subscribing to warden_sightings changes...')
+
   const channel = supabase
     .channel('warden_sightings_changes')
     .on(
@@ -76,10 +77,10 @@ export function subscribeToWardenSightings(
         table: 'warden_sightings',
       },
       (payload) => {
-        console.log('Received INSERT event:', payload)
+        logger.debug('Received INSERT event:', payload)
         const sighting = payload.new as WardenSighting
         if (new Date(sighting.expires_at) > new Date()) {
-          console.log('Adding new sighting to list:', sighting.id)
+          logger.debug('Adding new sighting to list:', sighting.id)
           onInsert(sighting)
         }
       }
@@ -92,14 +93,14 @@ export function subscribeToWardenSightings(
         table: 'warden_sightings',
       },
       (payload) => {
-        console.log('Received DELETE event:', payload)
+        logger.debug('Received DELETE event:', payload)
         onDelete(payload.old.id)
       }
     )
     .subscribe((status) => {
-      console.log('Subscription status:', status)
+      logger.debug('Subscription status:', status)
     })
-    
+
   return channel
 }
 
@@ -122,7 +123,7 @@ export async function setParkedCar(
     .single()
 
   if (error) {
-    console.error('Error setting parked car:', error)
+    logger.error('Error setting parked car:', error)
     return null
   }
 
@@ -136,7 +137,7 @@ export async function removeParkedCar(userId: string): Promise<boolean> {
     .eq('user_id', userId)
 
   if (error) {
-    console.error('Error removing parked car:', error)
+    logger.error('Error removing parked car:', error)
     return false
   }
 

@@ -10,10 +10,58 @@ import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../theme/colors'
 import { typography, spacing } from '../../theme/typography'
 import type { WardenSighting } from '../../types/database'
+import { logger } from '../../utils/logger'
+
+// Leaflet type definitions for web platform
+interface LeafletLatLng {
+  lat: number
+  lng: number
+}
+
+interface LeafletEvent {
+  latlng: LeafletLatLng
+  target: {
+    getLatLng(): LeafletLatLng
+    closePopup(): void
+  }
+}
+
+interface LeafletMarker {
+  addTo(map: LeafletMap): LeafletMarker
+  bindPopup(content: string): LeafletMarker
+  on(event: string, handler: (e: LeafletEvent) => void): LeafletMarker
+  remove(): void
+  closePopup(): void
+}
+
+interface LeafletCircle {
+  addTo(map: LeafletMap): LeafletCircle
+  remove(): void
+}
+
+interface LeafletMap {
+  setView(center: [number, number], zoom: number): LeafletMap
+  removeLayer(layer: LeafletMarker | LeafletCircle): void
+  on(event: string, handler: (e: LeafletEvent) => void): LeafletMap
+  off(event: string, handler: (e: LeafletEvent) => void): LeafletMap
+  remove(): void
+}
+
+interface LeafletLibrary {
+  map(element: HTMLElement, options?: { center?: [number, number]; zoom?: number }): LeafletMap
+  tileLayer(url: string, options: { attribution: string }): { addTo(map: LeafletMap): void }
+  marker(latlng: [number, number] | LeafletLatLng, options?: { icon?: LeafletIcon; draggable?: boolean; zIndexOffset?: number }): LeafletMarker
+  circle(latlng: [number, number], options: { radius: number; color: string; fillColor: string; fillOpacity: number; weight: number; dashArray?: string }): LeafletCircle
+  divIcon(options: { className: string; html: string; iconSize: [number, number]; iconAnchor: [number, number] }): LeafletIcon
+}
+
+interface LeafletIcon {
+  // Marker icon type
+}
 
 declare global {
   interface Window {
-    L: any
+    L: LeafletLibrary
   }
 }
 
@@ -55,16 +103,16 @@ export function WebInteractiveMap({
   onRemoveCar,
 }: WebInteractiveMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const markersRef = useRef<Map<string, any>>(new Map())
-  const carMarkerRef = useRef<any>(null)
-  const carCircleRef = useRef<any>(null)
+  const mapInstanceRef = useRef<LeafletMap | null>(null)
+  const markersRef = useRef<Map<string, LeafletMarker>>(new Map())
+  const carMarkerRef = useRef<LeafletMarker | null>(null)
+  const carCircleRef = useRef<LeafletCircle | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [selectedType, setSelectedType] = useState('council')
   const [selectedMovement, setSelectedMovement] = useState('walking')
   const [isAdding, setIsAdding] = useState(false)
   const [isMarkingCar, setIsMarkingCar] = useState(false)
-  const [tempMarker, setTempMarker] = useState<any>(null)
+  const [tempMarker, setTempMarker] = useState<LeafletMarker | null>(null)
   const [placementData, setPlacementData] = useState<{
     lat: number
     lng: number
@@ -276,102 +324,102 @@ export function WebInteractiveMap({
         margin-top: 8px; font-size: 14px;
       ">Remove</button>`)
       
-      // Handle remove car button
-      carMarkerRef.current.on('popupopen', () => {
-        setTimeout(() => {
-          const btn = document.getElementById('remove-car-btn')
-          if (btn) {
-            btn.addEventListener('click', () => {
-              carMarkerRef.current.closePopup()
-              if (onRemoveCar) {
-                onRemoveCar()
-              }
-            })
-          }
-        }, 100)
-      })
+  // Handle remove car button
+    carMarkerRef.current.on('popupopen', () => {
+      setTimeout(() => {
+        const btn = document.getElementById('remove-car-btn')
+        if (btn) {
+          btn.addEventListener('click', () => {
+            carMarkerRef.current?.closePopup()
+            if (onRemoveCar) {
+              onRemoveCar()
+            }
+          })
+        }
+      }, 100)
+    })
     }
   }, [isReady, parkedCar, onRemoveCar])
 
-  // Handle map click for adding marker
-  useEffect(() => {
-    if (!mapInstanceRef.current || !isReady) return
-    
-    const map = mapInstanceRef.current
-    
-  const handleClick = (e: any) => {
-      console.log('Map clicked, isAdding:', isAdding, 'isMarkingCar:', isMarkingCar)
-      
-      if (isMarkingCar) {
-        const { lat, lng } = e.latlng
-        if (onMarkCar) {
-          onMarkCar(lat, lng)
-        }
-        setIsMarkingCar(false)
-        return
+// Handle map click for adding marker
+useEffect(() => {
+  if (!mapInstanceRef.current || !isReady) return
+
+  const map = mapInstanceRef.current
+
+  const handleClick = (e: LeafletEvent) => {
+    logger.debug('Map clicked, isAdding:', isAdding, 'isMarkingCar:', isMarkingCar)
+
+    if (isMarkingCar) {
+      const { lat, lng } = e.latlng
+      if (onMarkCar) {
+        onMarkCar(lat, lng)
       }
-      
-      if (!isAdding) return
-
-const { lat, lng } = e.latlng
-      console.log('Creating marker at:', lat, lng)
-
-      // Remove old temp marker
-      if (tempMarker) {
-        map.removeLayer(tempMarker)
-      }
-      
-  // Create simple red location marker (only the dot, no arrow)
-      const icon = window.L.divIcon({
-        className: 'temp-marker',
-        html: `<div style="
-          width: 24px; height: 24px; background: #FF3B30;
-          border: 3px solid white; border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-          cursor: grab;
-        "></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      })
-
-      const marker = window.L.marker([lat, lng], {
-        icon,
-        draggable: true,
-        zIndexOffset: 2000,
-      }).addTo(map)
-
-  // Calculate direction on drag end (just track position, no visual line/arrow)
-      marker.on('dragend', (event: any) => {
-        const pos = event.target.getLatLng()
-        setPlacementData({
-          lat: pos.lat,
-          lng: pos.lng,
-          direction: 'N',
-        })
-      })
-
-      setTempMarker(marker)
-      setPlacementData({ lat, lng, direction: 'N' })
+      setIsMarkingCar(false)
+      return
     }
-    
-    map.on('click', handleClick)
-    return () => {
-      map.off('click', handleClick)
-    }
-  }, [isReady, isAdding, isMarkingCar, selectedType, tempMarker])
 
-  const handleStartAdding = () => {
-    console.log('Starting add mode')
-    setIsMarkingCar(false)
-    setIsAdding(true)
-    setPlacementData(null)
+    if (!isAdding) return
+
+    const { lat, lng } = e.latlng
+    logger.debug('Creating marker at:', lat, lng)
+
+    // Remove old temp marker
+    if (tempMarker) {
+      map.removeLayer(tempMarker)
+    }
+
+    // Create simple red location marker (only the dot, no arrow)
+    const icon = window.L.divIcon({
+      className: 'temp-marker',
+      html: `<div style="
+      width: 24px; height: 24px; background: #FF3B30;
+      border: 3px solid white; border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      cursor: grab;
+      "></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    })
+
+    const marker = window.L.marker([lat, lng], {
+      icon,
+      draggable: true,
+      zIndexOffset: 2000,
+    }).addTo(map)
+
+    // Calculate direction on drag end (just track position, no visual line/arrow)
+    marker.on('dragend', (event: LeafletEvent) => {
+      const pos = event.target.getLatLng()
+      setPlacementData({
+        lat: pos.lat,
+        lng: pos.lng,
+        direction: 'N',
+      })
+    })
+
+    setTempMarker(marker)
+    setPlacementData({ lat, lng, direction: 'N' })
   }
 
-  const handleStartMarkingCar = () => {
-    console.log('Starting car marking mode')
-    setIsAdding(false)
-    setIsMarkingCar(true)
+  map.on('click', handleClick)
+  return () => {
+    map.off('click', handleClick)
   }
+}, [isReady, isAdding, isMarkingCar, selectedType, tempMarker])
+
+const handleStartAdding = () => {
+  logger.debug('Starting add mode')
+  setIsMarkingCar(false)
+  setIsAdding(true)
+  setPlacementData(null)
+}
+
+const handleStartMarkingCar = () => {
+  logger.debug('Starting car marking mode')
+  setIsAdding(false)
+  setIsMarkingCar(true)
+}
 
   const handleCancelCarMarking = () => {
     setIsMarkingCar(false)
@@ -392,21 +440,21 @@ const { lat, lng } = e.latlng
     setPlacementData(null)
   }
 
-  const handleConfirm = () => {
-    if (placementData) {
-      console.log('Confirming sighting:', placementData, selectedType, selectedMovement)
-      onAddSighting({
-        lat: placementData.lat,
-        lng: placementData.lng,
-        warden_type: selectedType,
-        direction: placementData.direction,
-        movement: selectedMovement,
-      })
-      handleCancel()
-    } else {
-      console.log('No placement data to confirm')
-    }
+const handleConfirm = () => {
+  if (placementData) {
+    logger.debug('Confirming sighting:', placementData, selectedType, selectedMovement)
+    onAddSighting({
+      lat: placementData.lat,
+      lng: placementData.lng,
+      warden_type: selectedType,
+      direction: placementData.direction,
+      movement: selectedMovement,
+    })
+    handleCancel()
+  } else {
+    logger.warn('No placement data to confirm')
   }
+}
 
   const recenter = () => {
     if (mapInstanceRef.current && userLocation) {
@@ -523,8 +571,8 @@ return (
         </View>
       )}
 
-      {/* Map */}
-      <div ref={mapRef} style={styles.mapDiv as any} />
+    {/* Map */}
+    <div ref={mapRef} style={{ flex: 1 }} />
 
       {/* Stats */}
       <View style={styles.stats}>
@@ -675,9 +723,6 @@ const styles = StyleSheet.create({
   tipText: {
     ...typography.labelSmall,
     color: colors.onPrimaryContainer,
-  },
-  mapDiv: {
-    flex: 1,
   },
   stats: {
     flexDirection: 'row',
