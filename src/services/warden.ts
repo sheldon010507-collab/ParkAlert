@@ -1,158 +1,87 @@
 import { supabase } from './supabase'
-import {
-  WardenSighting,
-  ParkedCar,
-  WardenType,
-  CountType,
-  DirectionType,
-  MovementType,
-  MOVEMENT_EXPIRY_MINUTES,
-} from '../types/database'
+import { WardenSighting, ParkedCar, WardenType, CountType, DirectionType, MovementType, MOVEMENT_EXPIRY_MINUTES } from '../types/database'
+
+export interface ServiceResult<T> {
+  data: T | null
+  error: string | null
+}
 
 export async function createWardenSighting(
-  data: {
-    lat: number
-    lng: number
-    warden_type: WardenType
-    count: CountType
-    direction: DirectionType
-    movement: MovementType
-  },
+  data: { lat: number; lng: number; warden_type: WardenType; count: CountType; direction: DirectionType; movement: MovementType },
   userId: string
-): Promise<WardenSighting | null> {
+): Promise<ServiceResult<WardenSighting>> {
   const expiresAt = new Date()
-  expiresAt.setMinutes(
-    expiresAt.getMinutes() + MOVEMENT_EXPIRY_MINUTES[data.movement]
-  )
+  expiresAt.setMinutes(expiresAt.getMinutes() + MOVEMENT_EXPIRY_MINUTES[data.movement])
 
-  const { data: sighting, error } = await supabase
-    .from('warden_sightings')
-    .insert({
-      ...data,
-      user_id: userId,
-      expires_at: expiresAt.toISOString(),
-    })
-    .select()
-    .single()
+  const { data: sighting, error } = await supabase.from('warden_sightings').insert({
+    ...data,
+    user_id: userId,
+    expires_at: expiresAt.toISOString(),
+  }).select().single()
 
   if (error) {
-    console.error('Error creating warden sighting:', error)
-    return null
+    return { data: null, error: error.message || 'Failed to create sighting' }
   }
-
-  return sighting
+  return { data: sighting, error: null }
 }
 
-export async function getActiveWardenSightings(): Promise<WardenSighting[]> {
+export async function getActiveWardenSightings(): Promise<ServiceResult<WardenSighting[]>> {
   const now = new Date().toISOString()
-
-  const { data, error } = await supabase
-    .from('warden_sightings')
-    .select('*')
-    .gt('expires_at', now)
-    .order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('warden_sightings').select('*').gt('expires_at', now).order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching warden sightings:', error)
-    return []
+    return { data: [], error: error.message || 'Failed to fetch sightings' }
   }
-
-  return data || []
+  return { data: data || [], error: null }
 }
 
-export function subscribeToWardenSightings(
-  onInsert: (sighting: WardenSighting) => void,
-  onDelete: (id: string) => void
-) {
-  console.log('Subscribing to warden_sightings changes...')
-  
-  const channel = supabase
-    .channel('warden_sightings_changes')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'warden_sightings',
-      },
-      (payload) => {
-        console.log('Received INSERT event:', payload)
-        const sighting = payload.new as WardenSighting
-        if (new Date(sighting.expires_at) > new Date()) {
-          console.log('Adding new sighting to list:', sighting.id)
-          onInsert(sighting)
-        }
+export function subscribeToWardenSightings(onInsert: (sighting: WardenSighting) => void, onDelete: (id: string) => void) {
+  const channel = supabase.channel('warden_sightings_changes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'warden_sightings' }, (payload) => {
+      const sighting = payload.new as WardenSighting
+      if (new Date(sighting.expires_at) > new Date()) {
+        onInsert(sighting)
       }
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'DELETE',
-        schema: 'public',
-        table: 'warden_sightings',
-      },
-      (payload) => {
-        console.log('Received DELETE event:', payload)
-        onDelete(payload.old.id)
-      }
-    )
-    .subscribe((status) => {
-      console.log('Subscription status:', status)
     })
-    
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'warden_sightings' }, (payload) => {
+      onDelete(payload.old.id)
+    })
+    .subscribe()
+
   return channel
 }
 
-export async function setParkedCar(
-  data: { lat: number; lng: number },
-  userId: string
-): Promise<ParkedCar | null> {
-  const { data: parkedCar, error } = await supabase
-    .from('parked_cars')
-    .upsert(
-      {
-        user_id: userId,
-        lat: data.lat,
-        lng: data.lng,
-        radius_m: 100,
-      },
-      { onConflict: 'user_id' }
-    )
-    .select()
-    .single()
+export async function setParkedCar(data: { lat: number; lng: number }, userId: string): Promise<ServiceResult<ParkedCar>> {
+  const { data: parkedCar, error } = await supabase.from('parked_cars').upsert({
+    user_id: userId,
+    lat: data.lat,
+    lng: data.lng,
+    radius_m: 100,
+  }, { onConflict: 'user_id' }).select().single()
 
   if (error) {
-    console.error('Error setting parked car:', error)
-    return null
+    return { data: null, error: error.message || 'Failed to set parked car' }
   }
-
-  return parkedCar
+  return { data: parkedCar, error: null }
 }
 
-export async function removeParkedCar(userId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('parked_cars')
-    .delete()
-    .eq('user_id', userId)
+export async function removeParkedCar(userId: string): Promise<ServiceResult<boolean>> {
+  const { error } = await supabase.from('parked_cars').delete().eq('user_id', userId)
 
   if (error) {
-    console.error('Error removing parked car:', error)
-    return false
+    return { data: null, error: error.message || 'Failed to remove parked car' }
   }
-
-  return true
+  return { data: true, error: null }
 }
 
-export async function getParkedCar(userId: string): Promise<ParkedCar | null> {
-  const { data, error } = await supabase
-    .from('parked_cars')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+export async function getParkedCar(userId: string): Promise<ServiceResult<ParkedCar>> {
+  const { data, error } = await supabase.from('parked_cars').select('*').eq('user_id', userId).single()
 
   if (error) {
-    return null
+    if (error.code === 'PGRST116') {
+      return { data: null, error: null }
+    }
+    return { data: null, error: error.message || 'Failed to get parked car' }
   }
-
-  return data
+  return { data, error: null }
 }

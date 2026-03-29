@@ -27,5 +27,14 @@ export const MOVEMENT_TYPES = [
   { value: 'driving', label: 'Driving' },
 ] as const
 
+// Alert configuration - single source of truth
 export const ALERT_RADIUS_METERS = 100
 export const ALERT_COOLDOWN_MINUTES = 5
+
+// Default location (can be overridden by user location)
+export const DEFAULT_LOCATION = {
+  latitude: 55.8609,
+  longitude: -4.2514,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+}
