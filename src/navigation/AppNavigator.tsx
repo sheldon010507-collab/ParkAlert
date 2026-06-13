@@ -1,57 +1,79 @@
 import React from 'react'
 import { NavigationContainer } from '@react-navigation/native'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../contexts/AuthContext'
+import { LoadingScreen } from '../screens/common/LoadingScreen'
 import { LoginScreen } from '../screens/auth/LoginScreen'
-import { RegisterScreen } from '../screens/auth/RegisterScreen'
+import { SignUpScreen } from '../screens/auth/SignUpScreen'
 import { MapScreen } from '../screens/map/MapScreen'
-import { ReportScreen } from '../screens/report/ReportScreen'
-import { ParkedScreen } from '../screens/parked/ParkedScreen'
-import { RootStackParamList } from '../types/navigation'
+import { SettingsScreen } from '../screens/settings/SettingsScreen'
+import { RootStackParamList, MainTabParamList } from '../types/navigation'
+import { colors } from '../constants'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
+const Tab = createBottomTabNavigator<MainTabParamList>()
 
-function AuthStack() {
+function MainTabs() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-    </Stack.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap
+
+          if (route.name === 'Map') {
+            iconName = focused ? 'map' : 'map-outline'
+          } else {
+            iconName = focused ? 'settings' : 'settings-outline'
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Map" 
+        component={MapScreen} 
+        options={{ title: 'ParkAlert' }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ title: 'Settings' }}
+      />
+    </Tab.Navigator>
   )
 }
 
-function MainStack() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="Map"
-        component={MapScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Report"
-        component={ReportScreen}
-        options={{ title: 'Report Sighting' }}
-      />
-      <Stack.Screen
-        name="Parked"
-        component={ParkedScreen}
-        options={{ title: 'Mark Parking', presentation: 'modal' }}
-      />
-    </Stack.Navigator>
-  )
-}
-
-export function AppNavigator() {
-  const { session, loading } = useAuth()
+export default function AppNavigator() {
+  const { user, loading } = useAuth()
 
   if (loading) {
-    return null
+    return <LoadingScreen />
   }
 
   return (
     <NavigationContainer>
-      {session ? <MainStack /> : <AuthStack />}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          <Stack.Screen name="Main" component={MainTabs} />
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </>
+        )}
+      </Stack.Navigator>
     </NavigationContainer>
   )
 }

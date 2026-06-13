@@ -1,39 +1,122 @@
-export type WardenType = 'council' | 'private' | 'police'
-export type CountType = 'one' | 'two' | 'multiple'
-export type DirectionType = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW'
-export type MovementType = 'walking' | 'cycling' | 'driving'
-
-export interface Profile {
-  id: string
-  username: string | null
-  reputation: number
-  created_at: string
-}
-
-export interface WardenSighting {
-  id: string
-  user_id: string
-  lat: number
-  lng: number
-  warden_type: WardenType
-  count: CountType
-  direction: DirectionType
-  movement: MovementType
-  expires_at: string
-  created_at: string
-}
-
-export interface ParkedCar {
-  id: string
-  user_id: string
-  lat: number
-  lng: number
-  radius_m: number
-  created_at: string
-}
-
-export const MOVEMENT_EXPIRY_MINUTES: Record<MovementType, number> = {
-  walking: 5,
-  cycling: 3,
-  driving: 2,
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          full_name: string | null
+          avatar_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      parking_locations: {
+        Row: {
+          id: string
+          user_id: string
+          latitude: number
+          longitude: number
+          address: string | null
+          alert_radius: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          latitude: number
+          longitude: number
+          address?: string | null
+          alert_radius?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          latitude?: number
+          longitude?: number
+          address?: string | null
+          alert_radius?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      parking_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          parking_location_id: string
+          started_at: string
+          ended_at: string | null
+          alert_count: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          parking_location_id: string
+          started_at?: string
+          ended_at?: string | null
+          alert_count?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          parking_location_id?: string
+          started_at?: string
+          ended_at?: string | null
+          alert_count?: number
+        }
+      }
+      alert_logs: {
+        Row: {
+          id: string
+          user_id: string
+          parking_location_id: string
+          distance: number
+          alert_type: 'distance' | 'time'
+          acknowledged: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          parking_location_id: string
+          distance: number
+          alert_type: 'distance' | 'time'
+          acknowledged?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          parking_location_id?: string
+          distance?: number
+          alert_type?: 'distance' | 'time'
+          acknowledged?: boolean
+          created_at?: string
+        }
+      }
+    }
+  }
 }

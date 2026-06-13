@@ -1,70 +1,70 @@
-import React from 'react'
-import { Session, AuthError } from '@supabase/supabase-js'
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../services/supabase'
 
 interface AuthContextType {
+  user: User | null
   session: Session | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
 }
 
-const AuthContext = React.createContext<AuthContextType>({
-  session: null,
-  loading: true,
-  signIn: async () => ({ error: null }),
-  signUp: async () => ({ error: null }),
-  signOut: async () => {},
-})
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = React.useState<Session | null>(null)
-  const [loading, setLoading] = React.useState(true)
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
 
-  React.useEffect(() => {
+interface AuthProviderProps {
+  children: React.ReactNode
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session)
-      }
-    )
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
     return () => subscription.unsubscribe()
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
     return { error }
   }
 
-  const signUp = async (email: string, password: string) => {
-    const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
       password,
-      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined
+      options: {
+        data: fullName ? { full_name: fullName } : undefined,
+      },
     })
-    
-    if (!error && data.user) {
-      // Create profile for new user
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          username: email.split('@')[0],
-          reputation: 0,
-        })
-      
-      if (profileError) {
-        console.error('Error creating profile:', profileError)
-      }
-    }
-    
+
     return { error }
   }
 
@@ -72,11 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  return (
-    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
+  const value = {
+    user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+  }
 
-export const useAuth = () => React.useContext(AuthContext)
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}

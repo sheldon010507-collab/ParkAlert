@@ -1,80 +1,84 @@
 # ParkAlert
 
-A mobile app for reporting parking warden sightings and receiving real-time alerts when wardens are detected near your parked car.
+ParkAlert is an Expo + React Native parking reminder app. It helps a driver save their parked car location, monitors distance from that point, and shows an alert when the user moves beyond the configured radius.
 
-## Features
+## What Is In This Repo
 
-- **Interactive Map** - Report warden sightings with type (Council/Private/Police), direction, and movement
-- **Mark My Car** - Save your parked car location with 100m alert radius
-- **Real-time Alerts** - Get notified when wardens are detected near your car
-- **Cross-platform** - Works on Web and iOS
+- Expo app targeting iOS, Android, and web.
+- Supabase Auth and database integration.
+- Google Maps support for native and web map views.
+- Offline-aware parking state storage.
+- Jest tests for core parking-alert behavior and error logging.
+- Vercel configuration for the Expo web build.
 
-## Tech Stack
+## Requirements
 
-- **Frontend**: React Native + Expo + TypeScript
-- **Backend**: Supabase (PostgreSQL + Realtime)
-- **Maps**: Leaflet (Web), react-native-maps (iOS)
-- **UI**: Material Design 3
+- Node.js 20 or newer.
+- npm.
+- Expo CLI through `npx expo`.
+- A Supabase project.
+- A Google Maps API key for web/native map rendering.
 
-## Getting Started
+## Environment Variables
 
-### Prerequisites
+Create a local `.env` file from the example and fill in real project values:
 
-- Node.js 18+
-- npm or yarn
-- Expo CLI
-- Supabase account
-
-### Installation
-
-1. Clone the repository
 ```bash
-git clone https://github.com/sheldon010507-collab/ParkAlert.git
-cd ParkAlert
+cp .env.example .env
 ```
 
-2. Install dependencies
-```bash
-npm install
-```
+Required public client variables:
 
-3. Create `.env` file with your Supabase credentials
-```env
+```bash
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 ```
 
-4. Run the app
+Only use a Supabase anon or publishable frontend key in this app. Never put a Supabase `service_role` key in Expo, Vercel public variables, or any browser/mobile client bundle.
+
+## Local Development
+
 ```bash
-# Web
-npm run web
-
-# iOS
-npm run ios
+npm install
+npm start
 ```
 
-### Database Setup
+Useful commands:
 
-Run the SQL migration in Supabase SQL Editor:
-```sql
--- See supabase/migrations/001_initial_schema.sql
+```bash
+npm run typecheck
+npm test -- --runInBand
+npm run build:web
 ```
 
-## Project Structure
+## Vercel Deployment
 
-```
-src/
-├── components/     # Reusable UI components
-├── screens/        # App screens
-├── hooks/          # Custom React hooks
-├── services/       # API services
-├── contexts/       # React contexts
-├── theme/          # Colors and typography
-├── types/          # TypeScript types
-└── constants/      # App constants
-```
+The Vercel build command runs `scripts/write-expo-env.js` before `expo export -p web` so the Expo web bundle receives the required public environment values.
 
-## License
+Set these variables in Vercel for Production, Preview, and Development:
 
-MIT
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`
+
+Then deploy with Vercel or push to the connected GitHub repository.
+
+## Supabase Setup
+
+Apply migrations in `supabase/migrations` to your Supabase project. The latest hardening migration enables RLS, tightens public grants, and adds policies for user-owned parking data, profiles, parking sessions, and alert logs.
+
+If you create new tables in the exposed `public` schema, enable RLS and add explicit policies before using them from the app.
+
+## Current Product Notes
+
+- Parking alerts trigger at 150 meters by default.
+- Alert cooldown is 15 minutes.
+- Alert expiry options are 30, 45, or 60 minutes.
+- The app keeps a local fallback parking location so the reminder remains useful during temporary network loss.
+
+## Security Notes
+
+- `.env` and Vercel local files are ignored by Git.
+- CI uses placeholder public values only to verify typecheck, tests, and web build.
+- Supabase RLS policies should be reviewed after every schema change.

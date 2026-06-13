@@ -1,19 +1,12 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "node scripts/write-expo-env.js && npx expo export -p web",
   "outputDirectory": "dist",
-  "devCommand": "expo",
-  "cleanUrls": true,
   "framework": null,
+  "installCommand": "npm ci",
   "rewrites": [
-    { "source": "/:path*", "destination": "/" }
-  ],
-  "headers": [
     {
       "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
+      "destination": "/index.html"
     }
   ]
 }

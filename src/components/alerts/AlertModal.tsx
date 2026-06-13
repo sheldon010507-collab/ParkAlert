@@ -1,190 +1,252 @@
-import React from 'react'
-import { View, Text, StyleSheet, Platform } from 'react-native'
+import React, { useEffect, useRef } from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+  Platform,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { MaterialDialog } from '../common/MaterialDialog'
-import { WardenSighting } from '../../types/database'
-import { wardenColors, wardenLabels } from '../../theme/colors'
-import { typography, spacing } from '../../theme/typography'
-import { logger } from '../../utils/logger'
+import { Audio } from 'expo-av'
+import * as Haptics from 'expo-haptics'
+import { colors, spacing, typography, borderRadius } from '../../constants'
 
 interface AlertModalProps {
   visible: boolean
-  sighting: WardenSighting | null
   distance: number
   onDismiss: () => void
+  onExtend: (minutes: number) => void
 }
 
-let alertAudio: HTMLAudioElement | null = null
+const { width } = Dimensions.get('window')
 
-function playAlertSound() {
-  if (Platform.OS === 'web') {
-    try {
-      logger.debug('Attempting to play alert sound...')
-
-      if (!alertAudio) {
-        alertAudio = new Audio('/assets/alert-sound.mp3')
-        alertAudio.loop = false
-        alertAudio.oncanplaythrough = () => {
-          logger.debug('Audio loaded and ready')
-        }
-        alertAudio.onerror = (e) => {
-          logger.warn('Audio load error:', e)
-        }
-      }
-      alertAudio.currentTime = 0
-      alertAudio.play()
-        .then(() => logger.debug('Audio playing successfully'))
-        .catch((e) => logger.warn('Audio play failed:', e))
-    } catch (e) {
-      logger.warn('Audio error:', e)
-    }
-  }
-}
-
-function triggerVibration() {
-  if (Platform.OS === 'web' && 'vibrate' in navigator) {
-    navigator.vibrate([300, 100, 300, 100, 300])
-  }
-}
-
-export function AlertModal({
+export const AlertModal: React.FC<AlertModalProps> = ({
   visible,
-  sighting,
   distance,
   onDismiss,
-}: AlertModalProps) {
-  logger.debug('AlertModal render:', { visible, sightingId: sighting?.id, distance })
+  onExtend,
+}) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current
+  const pulseAnim = useRef(new Animated.Value(1)).current
+  const soundRef = useRef<Audio.Sound | null>(null)
 
-  React.useEffect(() => {
-    logger.debug('AlertModal effect:', { visible, hasSighting: !!sighting })
-
-    if (visible && sighting) {
-      logger.debug('🚨 Alert triggered! Playing sound and vibration...')
-
+  useEffect(() => {
+    if (visible) {
       playAlertSound()
-      triggerVibration()
-
-      if (Platform.OS === 'web') {
-        try {
-          window.focus()
-        } catch (e) {
-          // Ignore focus errors
-        }
-      }
+      startAnimations()
+    } else {
+      stopAlertSound()
+      scaleAnim.setValue(0)
+      pulseAnim.setValue(1)
     }
-  }, [visible, sighting, distance])
 
-  if (!sighting) return null
+    return () => {
+      stopAlertSound()
+    }
+  }, [visible])
 
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date()
-    const date = new Date(dateString)
-    const diffMins = Math.floor((now.getTime() - date.getTime()) / 60000)
+  const playAlertSound = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        const audio = new window.Audio('/alert-sound.mp3')
+        audio.loop = true
+        audio.play()
+        return
+      }
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins === 1) return '1 min ago'
-    return `${diffMins} mins ago`
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/alert-sound.mp3'),
+        { shouldPlay: true, isLooping: true }
+      )
+      soundRef.current = sound
+    } catch (error) {
+      console.error('Error playing alert sound:', error)
+    }
   }
 
-  const wardenColor = wardenColors[sighting.warden_type]
-  const wardenLabel = wardenLabels[sighting.warden_type]
+  const stopAlertSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync()
+        await soundRef.current.unloadAsync()
+        soundRef.current = null
+      }
+    } catch (error) {
+      console.error('Error stopping alert sound:', error)
+    }
+  }
+
+  const startAnimations = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start()
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start()
+  }
+
+  const formatDistance = (meters: number) => {
+    if (meters < 1000) {
+      return `${Math.round(meters)}m`
+    }
+    return `${(meters / 1000).toFixed(1)}km`
+  }
 
   return (
-    <MaterialDialog
+    <Modal
       visible={visible}
-      onDismiss={onDismiss}
-      title="Warden Nearby!"
-      icon="warning"
-      iconColor={wardenColor}
-      dismissible={false}
-      primaryAction={{
-        label: 'Dismiss',
-        onPress: onDismiss,
-        variant: 'filled',
-      }}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onDismiss}
     >
-      <View style={styles.content}>
-        <View style={styles.sightingInfo}>
-          <View style={[styles.typeIndicator, { backgroundColor: wardenColor }]}>
-            <Ionicons
-              name={
-                sighting.warden_type === 'council'
-                  ? 'business'
-                  : sighting.warden_type === 'private'
-                  ? 'car'
-                  : 'shield'
-              }
-              size={24}
-              color="#fff"
-            />
-          </View>
-          <Text style={[styles.typeText, typography.titleMedium]}>
-            {wardenLabel}
+      <View style={styles.overlay}>
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.iconContainer,
+              {
+                transform: [{ scale: pulseAnim }],
+              },
+            ]}
+          >
+            <Ionicons name="warning" size={64} color={colors.error} />
+          </Animated.View>
+
+          <Text style={styles.title}>Parking Alert!</Text>
+          <Text style={styles.message}>
+            You are now {formatDistance(distance)} away from your parked car.
           </Text>
-        </View>
 
-        <View style={styles.details}>
-          <View style={styles.detailItem}>
-            <Ionicons name="location" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              <Text style={styles.distanceHighlight}>{distance}m</Text> away
-            </Text>
-          </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.dismissButton} onPress={onDismiss}>
+              <Text style={styles.dismissButtonText}>Dismiss</Text>
+            </TouchableOpacity>
 
-          <View style={styles.detailItem}>
-            <Ionicons name="compass" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              Moving {sighting.direction}
-            </Text>
+            <View style={styles.extendContainer}>
+              <Text style={styles.extendTitle}>Remind me again in:</Text>
+              {[30, 45, 60].map((minutes) => (
+                <TouchableOpacity
+                  key={minutes}
+                  style={styles.extendButton}
+                  onPress={() => onExtend(minutes)}
+                >
+                  <Text style={styles.extendButtonText}>{minutes} min</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-
-          <View style={styles.detailItem}>
-            <Ionicons name="time" size={20} color={wardenColor} />
-            <Text style={[styles.detailText, typography.bodyLarge]}>
-              {getTimeAgo(sighting.created_at)}
-            </Text>
-          </View>
-        </View>
+        </Animated.View>
       </View>
-    </MaterialDialog>
+    </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  content: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  sightingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  typeIndicator: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    padding: spacing.lg,
   },
-  typeText: {
-    color: wardenColors.council,
-  },
-  details: {
-    width: '100%',
-    gap: spacing.sm,
-  },
-  detailItem: {
-    flexDirection: 'row',
+  container: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
-    gap: spacing.sm,
+    maxWidth: width - spacing.xl * 2,
+    width: '100%',
+    shadowColor: colors.text,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  detailText: {
-    color: wardenColors.council,
+  iconContainer: {
+    marginBottom: spacing.lg,
   },
-  distanceHighlight: {
-    fontWeight: '700',
-    fontSize: 20,
+  title: {
+    fontSize: typography.sizes.xxxl,
+    fontWeight: typography.weights.bold,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: typography.sizes.lg,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: spacing.xl,
+  },
+  buttonContainer: {
+    width: '100%',
+  },
+  dismissButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
+  },
+  dismissButtonText: {
+    color: colors.background,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    textAlign: 'center',
+  },
+  extendContainer: {
+    alignItems: 'center',
+  },
+  extendTitle: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  extendButton: {
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginVertical: spacing.xs,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  extendButtonText: {
+    color: colors.text,
+    fontSize: typography.sizes.md,
+    textAlign: 'center',
   },
 })

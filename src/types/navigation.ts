@@ -1,9 +1,10 @@
 export type RootStackParamList = {
-  Auth: undefined
-  Main: undefined
   Login: undefined
-  Register: undefined
+  SignUp: undefined
+  Main: undefined
+}
+
+export type MainTabParamList = {
   Map: undefined
-  Report: undefined
-  Parked: undefined
+  Settings: undefined
 }

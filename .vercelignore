@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.expo
+.vercel
+.vercel.*
+node_modules
+dist
+web-build
+nul
