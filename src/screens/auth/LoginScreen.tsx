@@ -7,6 +7,7 @@ import { MaterialAlert } from '../../components/common/MaterialDialog'
 import { useAuth } from '../../contexts/AuthContext'
 import { colors } from '../../theme/colors'
 import { typography, spacing, radius } from '../../theme/typography'
+import { getAuthErrorMessage } from '../../utils/authErrors'
 
 export function LoginScreen() {
   const navigation = useNavigation()
@@ -19,17 +20,21 @@ export function LoginScreen() {
   const { signIn } = useAuth()
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (loading) return
+
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedEmail || !password) {
       setError('Please fill in all fields')
       return
     }
 
     setLoading(true)
-    const { error: signInError } = await signIn(email, password)
+    const { error: signInError } = await signIn(normalizedEmail, password)
     setLoading(false)
 
     if (signInError) {
-      setError(signInError.message)
+      setError(getAuthErrorMessage(signInError))
     }
   }
 

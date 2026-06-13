@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
@@ -7,6 +7,7 @@ import { MaterialAlert } from '../../components/common/MaterialDialog'
 import { useAuth } from '../../contexts/AuthContext'
 import { colors } from '../../theme/colors'
 import { typography, spacing, radius } from '../../theme/typography'
+import { getAuthErrorMessage, isRateLimitError } from '../../utils/authErrors'
 
 export function RegisterScreen() {
   const navigation = useNavigation()
@@ -18,11 +19,32 @@ export function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0)
+  const submitInFlightRef = useRef(false)
 
   const { signUp } = useAuth()
 
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return
+
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1))
+    }, 1000)
+
+    return () => window.clearTimeout(timer)
+  }, [retryAfterSeconds])
+
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (loading || submitInFlightRef.current) return
+
+    if (retryAfterSeconds > 0) {
+      setError(`Please wait ${retryAfterSeconds}s before trying again.`)
+      return
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedEmail || !password || !confirmPassword) {
       setError('Please fill in all fields')
       return
     }
@@ -37,14 +59,23 @@ export function RegisterScreen() {
       return
     }
 
+    submitInFlightRef.current = true
     setLoading(true)
-    const { error: signUpError } = await signUp(email, password)
-    setLoading(false)
 
-    if (signUpError) {
-      setError(signUpError.message)
-    } else {
-      setSuccess(true)
+    try {
+      const { error: signUpError } = await signUp(normalizedEmail, password)
+
+      if (signUpError) {
+        if (isRateLimitError(signUpError)) {
+          setRetryAfterSeconds(60)
+        }
+        setError(getAuthErrorMessage(signUpError))
+      } else {
+        setSuccess(true)
+      }
+    } finally {
+      submitInFlightRef.current = false
+      setLoading(false)
     }
   }
 
@@ -145,9 +176,15 @@ export function RegisterScreen() {
             variant="filled"
             size="large"
             loading={loading}
+            disabled={retryAfterSeconds > 0}
             fullWidth
             icon="person-add"
           />
+          {retryAfterSeconds > 0 && (
+            <Text style={[styles.retryText, typography.bodySmall]}>
+              Please wait {retryAfterSeconds}s before registering again.
+            </Text>
+          )}
         </View>
 
         {/* Footer */}
@@ -249,5 +286,9 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.onSurfaceVariant,
+  },
+  retryText: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
 })
